@@ -1,90 +1,126 @@
-# 🧐 keras2onnx-converter
+# 🧠 keras‑onnx‑torch converter
 
-Converti facilmente modelli Keras (`.h5`) in formato ONNX, con validazione e test automatico tramite ONNX Runtime.
+Convert **Keras** models (`.h5` / `.keras`) **and/or** existing **ONNX** files in pochi secondi:
 
----
-
-## 🚀 Caratteristiche
-
-* ✅ Conversione `.h5` → `.onnx` tramite `tf2onnx`
-* 🔍 Verifica automatica del file ONNX (`onnx.checker`)
-* 🧪 Inference di prova con input dummy (`onnxruntime`)
-* 🔧 Input shape, nome input e opset personalizzabili via CLI
-* 📦 Pronto per l'integrazione in pipeline PyTorch o ONNX Runtime
+* Keras → ONNX
+  \* Keras / ONNX → PyTorch `.pt`
+  \* Verifica ONNX + dummy‑inference opzionale
+* Salvataggio automatico in una cartella di output
 
 ---
 
-## 📦 Requisiti
+## 🚀 Funzionalità principali
 
-Installa le dipendenze:
+| ✔                                                | Descrizione                                           |
+| ------------------------------------------------ | ----------------------------------------------------- |
+| 💾 **Input flessibile**                           | qualunque `.h5`, `.keras` **o** `.onnx`               |
+| 🛠️ **Output multipli**                            | scegli ONNX (`--onnx`) e/o PyTorch (`--save‑pytorch`) |
+| 🔍 **Check ONNX** (`--no-check` per saltare)      | `onnx.checker` con report immediato                   |
+| 🧪 **Dummy inference** (`--no-dummy` per saltare) | test automatico con `onnxruntime`                     |
+| 🔧 **Parametri personalizzabili**                 | `--input-shape`, `--input-name`, `--opset`            |
+| 📂 **Cartella di output**                         | `--out-dir` (default `output/`)                       |
+
+---
+
+## 📦 Requisiti
 
 ```bash
 pip install -r requirements.txt
 ```
 
+> Dipendenze principali: `tensorflow`, `tf2onnx`, `onnx`, `onnxruntime`, `onnx2pytorch`, `torch`.
+
 ---
 
-## 🛠️ Utilizzo
+## 🛠️ CLI – esempi rapidi
 
-Esegui la conversione:
+### 1 ▸ Solo ONNX
 
 ```bash
 python app.py \
-  --h5 models/motion_blur_cnn_simple.h5 \
-  --onnx models/motion_blur_cnn_simple.onnx \
+  --input models/model.h5 \
+  --onnx                 # verrà salvato in output/model.onnx
+```
+
+### 2 ▸ Solo PyTorch `.pt`
+
+```bash
+python app.py \
+  --input models/model.h5 \
+  --save-pytorch          # creerà output/model.pt (usa ONNX temp.)
+```
+
+### 3 ▸ Entrambi con percorsi custom
+
+```bash
+python app.py \
+  --input   models/model.h5 \
+  --onnx    export/my_model.onnx \
+  --save-pytorch \
+  --torch   export/my_model.pt \
+  --out-dir export \
   --input-shape 128 128 3
 ```
 
----
+Se l’input è già un **ONNX**, puoi saltare la conversione Keras:
 
-### 📌 Opzioni disponibili
-
-| Flag            | Descrizione                             | Default         |
-| --------------- | --------------------------------------- | --------------- |
-| `--h5`          | Path del file `.h5` Keras da convertire | —               |
-| `--onnx`        | Path di output del file `.onnx`         | —               |
-| `--input-shape` | Shape dell'input (es. 128 128 3)        | `(128, 128, 3)` |
-| `--input-name`  | Nome del tensore di input               | `input`         |
-| `--opset`       | Versione ONNX opset da usare            | `13`            |
-| `--no-check`    | Salta la verifica del file ONNX         | disabilitato    |
-| `--no-dummy`    | Salta l'inferenza dummy con input zero  | disabilitato    |
-
----
-
-## 📂 Struttura del progetto
-
-```
-keras2onnx_converter/
-├── app.py                 # Script principale
-├── converter.py           # Logica di conversione
-├── requirements.txt       # Dipendenze Python
-├── README.md              # Questo file
-└── models/
-    └── motion_blur_cnn_simple.h5
+```bash
+python app.py --input models/already.onnx --save-pytorch
 ```
 
 ---
 
-## ✅ Output atteso
+## 📌 Opzioni CLI
+
+| Flag             | Descrizione                                                     | Default          |
+| ---------------- | --------------------------------------------------------------- | ---------------- |
+| `--input`        | Path al modello `.h5`, `.keras` **o** `.onnx`                   | **obbligatorio** |
+| `--out-dir`      | Cartella di destinazione                                        | `output/`        |
+| `--onnx`         | Path del file ONNX generato (se omesso = `out-dir/<name>.onnx`) | —                |
+| `--save-pytorch` | Converte l’ONNX in `torch.nn.Module` e salva `.pt`              | —                |
+| `--torch`        | Path per il file `.pt` (se omesso = `out-dir/<name>.pt`)        | —                |
+| `--opset`        | Versione ONNX opset (solo Keras → ONNX)                         | `13`             |
+| `--input-shape`  | Shape input H W C (solo Keras → ONNX)                           | `128 128 3`      |
+| `--input-name`   | Nome tensore input                                              | `input`          |
+| `--no-check`     | Salta la validazione ONNX                                       | disabilitato     |
+| `--no-dummy`     | Salta dummy inference                                           | disabilitato     |
+
+---
+
+## 📂 Struttura del progetto
 
 ```
-[INFO] Loading model from models/motion_blur_cnn_simple.h5
-[INFO] Converting to ONNX...
-[INFO] Checking ONNX model validity...
-✅ ONNX model is valid.
-[INFO] Running dummy inference using ONNX Runtime...
-✅ Dummy inference OK. Output shape: (1, 1)
+keras_onnx_torch_converter/
+├── app.py            # Entry‑point CLI
+├── converter.py      # Motore di conversione
+├── requirements.txt  # Dipendenze
+└── README.md         # Questo file
 ```
 
 ---
 
-## 🔧 Note tecniche
+## ✅ Esempio output
 
-* Se usi **NumPy ≥ 2.0**, `tf2onnx` potrebbe mostrare warning su `np.cast`.
-  Soluzione: `pip install "numpy<2.0"` o usa la branch aggiornata di tf2onnx.
+```
+[INFO] Loading Keras model: models/model.h5
+[INFO] Converting to ONNX → output/model.onnx
+[INFO] Verifica ONNX...
+✅ ONNX OK
+[INFO] Dummy inference...
+✅ Shape output: (1, 1)
+[INFO] Converting ONNX → PyTorch (output/model.pt)
+✅ Salvato PyTorch a output/model.pt
+```
 
 ---
 
-## 📘 Licenza
+## 🔧 Note tecniche
 
-MIT License © 2025 – Alex Citeroni
+* Con **NumPy ≥ 2.0** potresti vedere un warning `np.cast` da `tf2onnx`; se accade usa `pip install "numpy<2.0"` o la branch nightly di tf2onnx.
+* Se il modello Keras è salvato con canali `NHWC`, `tf2onnx` gestisce la trasposizione automaticamente.
+
+---
+
+## 📜 Licenza
+
+MIT License © 2025 – Alex Citeroni
