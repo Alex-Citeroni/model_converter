@@ -31,6 +31,7 @@ def convert_model(
     validate: bool = True,
     run_dummy: bool = True,
     save_pytorch: bool = False,
+    save_weights: bool = False,
 ):
     ext = os.path.splitext(input_path)[1].lower()
     is_keras = ext in {".h5", ".keras"}
@@ -77,17 +78,21 @@ def convert_model(
         out = sess.run(None, {input_name: dummy})
         print(f"✅ Shape output: {out[0].shape}")
 
-    # ---------------------------------------------------- ONNX → PyTorch
+    onnx_src = onnx_path_final
+    # -------------- ONNX → PyTorch intero  (.pt) --------------
     if save_pytorch:
-        onnx_src = onnx_path_final
-        if not onnx_src:  # non dovrebbe mai succedere
-            raise RuntimeError("Non hai un file ONNX da cui convertire in PyTorch")
-
-        print(f"[INFO] Converting ONNX → PyTorch ({torch_path})")
+        if not onnx_src:
+            raise RuntimeError("Serve un ONNX per salvare il modello PyTorch")
+        print(f"[INFO] Converting ONNX → PyTorch (full) → {torch_path}")
         torch_model = ConvertModel(onnx.load(onnx_src)).eval()
         torch.save(torch_model, torch_path)
-        print(f"✅ Salvato PyTorch a {torch_path}")
+        print(f"✅ Salvato modello completo a {torch_path}")
 
-        # se onnx temporaneo, rimuovi
-        if onnx_path is None and is_keras:
-            os.remove(onnx_src)
+    # -------------- ONNX → state_dict  (.pth) -----------------
+    elif save_weights:
+        if not onnx_src:
+            raise RuntimeError("Serve un ONNX per salvare lo state_dict")
+        print(f"[INFO] Converting ONNX → state_dict → {torch_path}")
+        torch_model = ConvertModel(onnx.load(onnx_src))
+        torch.save(torch_model.state_dict(), torch_path)
+        print(f"✅ Salvati soli pesi a {torch_path}")

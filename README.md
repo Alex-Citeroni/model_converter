@@ -1,24 +1,24 @@
 # 🧠 keras‑onnx‑torch converter
 
-Convert **Keras** models (`.h5` / `.keras`) **and/or** existing **ONNX** files in pochi secondi:
+Converti **modelli Keras** (`.h5` / `.keras`) **e/o** file **ONNX** già esistenti in pochi secondi:
 
-* Keras → ONNX
-  \* Keras / ONNX → PyTorch `.pt`
-  \* Verifica ONNX + dummy‑inference opzionale
-* Salvataggio automatico in una cartella di output
+* **Keras → ONNX**
+* **Keras / ONNX → PyTorch** (`.pt` *pickle completo* **oppure** `.pth` *solo pesi*)
+* Verifica automatica del modello ONNX + dummy‑inference opzionale
+* Salvataggio in una cartella di output configurabile
 
 ---
 
 ## 🚀 Funzionalità principali
 
-| ✔                                                | Descrizione                                           |
-| ------------------------------------------------ | ----------------------------------------------------- |
-| 💾 **Input flessibile**                           | qualunque `.h5`, `.keras` **o** `.onnx`               |
-| 🛠️ **Output multipli**                            | scegli ONNX (`--onnx`) e/o PyTorch (`--save‑pytorch`) |
-| 🔍 **Check ONNX** (`--no-check` per saltare)      | `onnx.checker` con report immediato                   |
-| 🧪 **Dummy inference** (`--no-dummy` per saltare) | test automatico con `onnxruntime`                     |
-| 🔧 **Parametri personalizzabili**                 | `--input-shape`, `--input-name`, `--opset`            |
-| 📂 **Cartella di output**                         | `--out-dir` (default `output/`)                       |
+| ✔                                | Descrizione                                                                 |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| 💾 **Input flessibile**           | qualunque `.h5`, `.keras` **o** `.onnx`                                     |
+| 🛠️ **Output multipli**            | `--onnx`, `--save‑pytorch` **(pickle)**, `--save‑weights` **(state\_dict)** |
+| 🔍 **Check ONNX**                 | `onnx.checker` (disattivabile con `--no-check`)                             |
+| 🧪 **Dummy inference**            | test rapido con `onnxruntime` (disattivabile con `--no-dummy`)              |
+| 🔧 **Parametri personalizzabili** | `--input-shape`, `--input-name`, `--opset`                                  |
+| 📂 **Cartella di output**         | `--out-dir` (default `output/`)                                             |
 
 ---
 
@@ -39,18 +39,26 @@ pip install -r requirements.txt
 ```bash
 python app.py \
   --input models/model.h5 \
-  --onnx                 # verrà salvato in output/model.onnx
+  --onnx                 # salva output/model.onnx
 ```
 
-### 2 ▸ Solo PyTorch `.pt`
+### 2 ▸ Solo PyTorch **pickle** `.pt`
 
 ```bash
 python app.py \
   --input models/model.h5 \
-  --save-pytorch          # creerà output/model.pt (usa ONNX temp.)
+  --save-pytorch          # crea output/model.pt (usa ONNX temporaneo)
 ```
 
-### 3 ▸ Entrambi con percorsi custom
+### 3 ▸ Solo **pesi** PyTorch `.pth`
+
+```bash
+python app.py \
+  --input models/model.h5 \
+  --save-weights          # crea output/model.pth
+```
+
+### 4 ▸ Entrambi con percorsi custom
 
 ```bash
 python app.py \
@@ -65,25 +73,26 @@ python app.py \
 Se l’input è già un **ONNX**, puoi saltare la conversione Keras:
 
 ```bash
-python app.py --input models/already.onnx --save-pytorch
+python app.py --input models/already.onnx --save-weights
 ```
 
 ---
 
 ## 📌 Opzioni CLI
 
-| Flag             | Descrizione                                                     | Default          |
-| ---------------- | --------------------------------------------------------------- | ---------------- |
-| `--input`        | Path al modello `.h5`, `.keras` **o** `.onnx`                   | **obbligatorio** |
-| `--out-dir`      | Cartella di destinazione                                        | `output/`        |
-| `--onnx`         | Path del file ONNX generato (se omesso = `out-dir/<name>.onnx`) | —                |
-| `--save-pytorch` | Converte l’ONNX in `torch.nn.Module` e salva `.pt`              | —                |
-| `--torch`        | Path per il file `.pt` (se omesso = `out-dir/<name>.pt`)        | —                |
-| `--opset`        | Versione ONNX opset (solo Keras → ONNX)                         | `13`             |
-| `--input-shape`  | Shape input H W C (solo Keras → ONNX)                           | `128 128 3`      |
-| `--input-name`   | Nome tensore input                                              | `input`          |
-| `--no-check`     | Salta la validazione ONNX                                       | disabilitato     |
-| `--no-dummy`     | Salta dummy inference                                           | disabilitato     |
+| Flag             | Descrizione                                   | Default               |        |
+| ---------------- | --------------------------------------------- | --------------------- | ------ |
+| `--input`        | Path al modello `.h5`, `.keras` **o** `.onnx` | **obbligatorio**      |        |
+| `--out-dir`      | Cartella di destinazione                      | `output/`             |        |
+| `--onnx`         | Path del file ONNX generato                   | `out-dir/<name>.onnx` |        |
+| `--save-pytorch` | Salva modello completo pickled `.pt`          | —                     |        |
+| `--save-weights` | Salva solo `state_dict` `.pth`                | —                     |        |
+| `--torch`        | Path per `.pt` **o** `.pth`                   | \`out-dir/<name>.pt   | .pth\` |
+| `--opset`        | Versione ONNX opset (solo Keras → ONNX)       | `13`                  |        |
+| `--input-shape`  | Shape input H W C (solo Keras → ONNX)         | `128 128 3`           |        |
+| `--input-name`   | Nome tensore input                            | `input`               |        |
+| `--no-check`     | Salta validazione ONNX                        | disabilitato          |        |
+| `--no-dummy`     | Salta dummy inference                         | disabilitato          |        |
 
 ---
 
@@ -99,7 +108,7 @@ keras_onnx_torch_converter/
 
 ---
 
-## ✅ Esempio output
+## ✅ Esempio output
 
 ```
 [INFO] Loading Keras model: models/model.h5
@@ -108,16 +117,16 @@ keras_onnx_torch_converter/
 ✅ ONNX OK
 [INFO] Dummy inference...
 ✅ Shape output: (1, 1)
-[INFO] Converting ONNX → PyTorch (output/model.pt)
-✅ Salvato PyTorch a output/model.pt
+[INFO] Converting ONNX → state_dict → output/model.pth
+✅ Salvati soli pesi a output/model.pth
 ```
 
 ---
 
 ## 🔧 Note tecniche
 
-* Con **NumPy ≥ 2.0** potresti vedere un warning `np.cast` da `tf2onnx`; se accade usa `pip install "numpy<2.0"` o la branch nightly di tf2onnx.
-* Se il modello Keras è salvato con canali `NHWC`, `tf2onnx` gestisce la trasposizione automaticamente.
+* Con **NumPy ≥ 2.0** potresti vedere un warning `np.cast` da `tf2onnx`; se accade usa `pip install "numpy<2.0"` o la branch nightly di `tf2onnx`.
+* Se salvi il modello pickled (`--save-pytorch`) e usi PyTorch ≥ 2.6, servono *safe\_globals* oppure carica con `weights_only=False`.
 
 ---
 

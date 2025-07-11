@@ -14,9 +14,14 @@ if __name__ == "__main__":
     )
     parser.add_argument("--onnx", help="Custom output name for ONNX file")
     parser.add_argument(
-        "--save-pytorch", action="store_true", help="Also save as PyTorch .pt model"
+        "--save-pytorch",
+        action="store_true",
+        help="Save full PyTorch .pt model (pickled)",
     )
-    parser.add_argument("--torch", help="Custom output name for PyTorch .pt file")
+    parser.add_argument(
+        "--save-weights", action="store_true", help="Save only state_dict (.pth)"
+    )
+    parser.add_argument("--torch", help="Custom output name for .pt or .pth file")
     parser.add_argument(
         "--opset",
         type=int,
@@ -42,9 +47,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # almeno un formato in uscita
-    if not args.onnx and not args.save_pytorch:
-        print("❌  Devi specificare --onnx e/o --save-pytorch")
+    # almeno un formato d’uscita:
+    if not args.onnx and not args.save_pytorch and not args.save_weights:
+        print("❌  Serve almeno --onnx, --save-pytorch o --save-weights")
         sys.exit(1)
 
     out_dir = pathlib.Path(args.out_dir)
@@ -57,9 +62,12 @@ if __name__ == "__main__":
         if args.onnx or not args.save_pytorch
         else None
     )
-    torch_path = (
-        args.torch or str(out_dir / f"{stem}.pt") if args.save_pytorch else None
-    )
+    if args.save_pytorch:
+        torch_path = args.torch or str(out_dir / f"{stem}.pt")
+    elif args.save_weights:
+        torch_path = args.torch or str(out_dir / f"{stem}.pth")
+    else:
+        torch_path = None
 
     convert_model(
         input_path=args.input,
@@ -71,4 +79,5 @@ if __name__ == "__main__":
         validate=not args.no_check,
         run_dummy=not args.no_dummy,
         save_pytorch=args.save_pytorch,
+        save_weights=args.save_weights,
     )
