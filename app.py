@@ -1,83 +1,75 @@
+# app.py
 import argparse, sys, pathlib
 from converter import convert_model
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Convert Keras (.h5/.keras) or ONNX to other formats"
-    )
+# ───────────────────── argparse ─────────────────────
+p = argparse.ArgumentParser(
+    description="Convert Keras (.h5/.keras) or ONNX into ONNX/PT/PTH/TorchScript"
+)
 
-    parser.add_argument(
-        "--input", required=True, help="Path to input model (.h5 / .keras / .onnx)"
-    )
-    parser.add_argument(
-        "--out-dir", default="output", help="Base folder for converted models"
-    )
-    parser.add_argument("--onnx", help="Custom output name for ONNX file")
-    parser.add_argument(
-        "--save-pytorch",
-        action="store_true",
-        help="Save full PyTorch .pt model (pickled)",
-    )
-    parser.add_argument(
-        "--save-weights", action="store_true", help="Save only state_dict (.pth)"
-    )
-    parser.add_argument("--torch", help="Custom output name for .pt or .pth file")
-    parser.add_argument(
-        "--opset",
-        type=int,
-        default=13,
-        help="ONNX opset version (when converting from Keras)",
-    )
-    parser.add_argument(
-        "--input-shape",
-        nargs=3,
-        type=int,
-        default=[128, 128, 3],
-        help="Input shape H W C (needed for Keras→ONNX)",
-    )
-    parser.add_argument(
-        "--input-name", default="input", help="Input tensor name (Keras→ONNX)"
-    )
-    parser.add_argument(
-        "--no-check", action="store_true", help="Skip ONNX validity check"
-    )
-    parser.add_argument(
-        "--no-dummy", action="store_true", help="Skip dummy inference on ONNX"
-    )
+p.add_argument(
+    "--input", required=True, help="Path to input model (.h5 | .keras | .onnx)"
+)
+p.add_argument(
+    "--out-dir", default="output", help="Destination folder for auto-generated names"
+)
 
-    args = parser.parse_args()
+# output formats: 0/1 arg  (flag   OR  flag <path>)
+p.add_argument("--onnx", nargs="?", const=True, help="Save ONNX  (opt: custom path)")
+p.add_argument("--pt", nargs="?", const=True, help="Save pickled model (.pt)")
+p.add_argument("--pth", nargs="?", const=True, help="Save state_dict (.pth)")
+p.add_argument("--ts", nargs="?", const=True, help="Save TorchScript (.ts.pt)")
 
-    # almeno un formato d’uscita:
-    if not args.onnx and not args.save_pytorch and not args.save_weights:
-        print("❌  Serve almeno --onnx, --save-pytorch o --save-weights")
-        sys.exit(1)
+# extra options (rarely touched → advanced group)
+g = p.add_argument_group("advanced")
+g.add_argument("--opset", type=int, default=13, help="ONNX opset (Keras→ONNX)")
+g.add_argument(
+    "--input-shape",
+    nargs=3,
+    type=int,
+    default=[128, 128, 3],
+    metavar=("H", "W", "C"),
+    help="Input shape for Keras models",
+)
+g.add_argument("--input-name", default="input", help="Input tensor name (Keras)")
+g.add_argument("--no-check", action="store_true", help="Skip ONNX checker")
+g.add_argument("--no-dummy", action="store_true", help="Skip dummy inference")
 
-    out_dir = pathlib.Path(args.out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
+args = p.parse_args()
 
-    # path di default se non passati
-    stem = pathlib.Path(args.input).stem
-    onnx_path = (
-        args.onnx or str(out_dir / f"{stem}.onnx")
-        if args.onnx or not args.save_pytorch
-        else None
-    )
-    if args.save_pytorch:
-        torch_path = args.torch or str(out_dir / f"{stem}.pt")
-    elif args.save_weights:
-        torch_path = args.torch or str(out_dir / f"{stem}.pth")
-    else:
-        torch_path = None
+# ───────────────────── validation ─────────────────────
+if not any([args.onnx, args.pt, args.pth, args.ts]):
+    p.error("specify at least one output: --onnx / --pt / --pth / --ts")
 
-    convert_model(
-        input_path=args.input,
-        onnx_path=onnx_path,
-        torch_path=torch_path,
-        input_shape=tuple(args.input_shape),
-        input_name=args.input_name,
-        opset=args.opset,
-        validate=not args.no_check,
-        run_dummy=not args.no_dummy,
-        save_pytorch=args.save_pytorch,
-        save_weights=args.save_weights,
-    )
+out_dir = pathlib.Path(args.out_dir)
+out_dir.mkdir(parents=True, exist_ok=True)
+stem = pathlib.Path(args.input).stem
+
+
+def _resolve(flag, default_ext):
+    if flag is True:  # flag without value
+        return str(out_dir / f"{stem}{default_ext}")
+    elif isinstance(flag, str):  # custom path
+        return flag
+    return None  # flag absent
+
+
+onnx_path = _resolve(args.onnx, ".onnx")
+pt_path = _resolve(args.pt, ".pt")
+pth_path = _resolve(args.pth, ".pth")
+ts_path = _resolve(args.ts, ".ts.pt")
+
+# ───────────────────── call converter ─────────────────────
+convert_model(
+    input_path=args.input,
+    onnx_path=onnx_path,
+    torch_path=pt_path or pth_path or ts_path,
+    input_shape=tuple(args.input_shape),
+    input_name=args.input_name,
+    opset=args.opset,
+    validate=not args.no_check,
+    run_dummy=not args.no_dummy,
+    save_pytorch=bool(args.pt),
+    save_weights=bool(args.pth),
+    save_ts=bool(args.ts),
+)
