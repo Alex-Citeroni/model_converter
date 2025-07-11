@@ -1,2 +1,10 @@
 .venv
 /models
+/output
+
+# ─── Python byte-code cache ──────────────────────────
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+*.so

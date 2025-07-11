@@ -1,4 +1,4 @@
-# 🧠 keras2onnx-converter
+# 🧐 keras2onnx-converter
 
 Converti facilmente modelli Keras (`.h5`) in formato ONNX, con validazione e test automatico tramite ONNX Runtime.
 
@@ -10,7 +10,7 @@ Converti facilmente modelli Keras (`.h5`) in formato ONNX, con validazione e tes
 * 🔍 Verifica automatica del file ONNX (`onnx.checker`)
 * 🧪 Inference di prova con input dummy (`onnxruntime`)
 * 🔧 Input shape, nome input e opset personalizzabili via CLI
-* 📦 Pronto per l’integrazione in pipeline PyTorch o ONNX Runtime
+* 📦 Pronto per l'integrazione in pipeline PyTorch o ONNX Runtime
 
 ---
 
@@ -47,7 +47,7 @@ python app.py \
 | `--input-name`  | Nome del tensore di input               | `input`         |
 | `--opset`       | Versione ONNX opset da usare            | `13`            |
 | `--no-check`    | Salta la verifica del file ONNX         | disabilitato    |
-| `--no-dummy`    | Salta l’inferenza dummy con input zero  | disabilitato    |
+| `--no-dummy`    | Salta l'inferenza dummy con input zero  | disabilitato    |
 
 ---
 
@@ -81,10 +81,10 @@ keras2onnx_converter/
 ## 🔧 Note tecniche
 
 * Se usi **NumPy ≥ 2.0**, `tf2onnx` potrebbe mostrare warning su `np.cast`.
-  Soluzione: `pip install "numpy<2.0"` oppure usa la branch aggiornata di `tf2onnx`.
+  Soluzione: `pip install "numpy<2.0"` o usa la branch aggiornata di tf2onnx.
 
 ---
 
-## 📜 Licenza
+## 📘 Licenza
 
 MIT License © 2025 – Alex Citeroni

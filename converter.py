@@ -1,38 +1,93 @@
-import tensorflow as tf
-import tf2onnx
-import onnx
+import os, tempfile, numpy as np, onnx
+from typing import Tuple, Optional
+
+# Caricamento / conversione
+import tensorflow as tf, tf2onnx
 import onnxruntime as ort
-import numpy as np
+from onnx2pytorch import ConvertModel
+import torch
 
 
-def convert_keras_to_onnx(
-    h5_path: str,
+def _keras_to_onnx(
+    keras_model: tf.keras.Model,
     onnx_path: str,
-    input_shape: tuple = (128, 128, 3),
+    input_shape: Tuple[int, int, int],
+    input_name: str,
+    opset: int,
+):
+    sig = (tf.TensorSpec((None, *input_shape), tf.float32, name=input_name),)
+    tf2onnx.convert.from_keras(
+        keras_model, input_signature=sig, opset=opset, output_path=onnx_path
+    )
+
+
+def convert_model(
+    input_path: str,
+    onnx_path: Optional[str],
+    torch_path: Optional[str],
+    input_shape: Tuple[int, int, int] = (128, 128, 3),
     input_name: str = "input",
     opset: int = 13,
     validate: bool = True,
     run_dummy: bool = True,
+    save_pytorch: bool = False,
 ):
-    print(f"[INFO] Loading model from {h5_path}")
-    model = tf.keras.models.load_model(h5_path)
+    ext = os.path.splitext(input_path)[1].lower()
+    is_keras = ext in {".h5", ".keras"}
+    is_onnx = ext == ".onnx"
 
-    # Ensure input is batch-first
-    input_sig = (tf.TensorSpec((None, *input_shape), tf.float32, name=input_name),)
+    if not is_keras and not is_onnx:
+        raise ValueError("Formato non supportato: usa .h5, .keras o .onnx")
 
-    print("[INFO] Converting to ONNX...")
-    onnx_model, _ = tf2onnx.convert.from_keras(
-        model, input_signature=input_sig, opset=opset, output_path=onnx_path
-    )
+    # ---------------------------------------------------- KERAS → ONNX
+    if is_keras:
+        print(f"[INFO] Loading Keras model: {input_path}")
+        keras_model = tf.keras.models.load_model(input_path)
 
-    if validate:
-        print("[INFO] Checking ONNX model validity...")
-        onnx.checker.check_model(onnx_path)
-        print("✅ ONNX model is valid.")
+        if onnx_path or save_pytorch:
+            onnx_path_final = (
+                onnx_path
+                or tempfile.NamedTemporaryFile(suffix=".onnx", delete=False).name
+            )
+            print(f"[INFO] Converting to ONNX → {onnx_path_final}")
+            _keras_to_onnx(keras_model, onnx_path_final, input_shape, input_name, opset)
+        else:
+            onnx_path_final = None
 
-    if run_dummy:
-        print("[INFO] Running dummy inference using ONNX Runtime...")
-        session = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
-        dummy_input = np.zeros((1, *input_shape), dtype=np.float32)
-        outputs = session.run(None, {input_name: dummy_input})
-        print(f"✅ Dummy inference OK. Output shape: {outputs[0].shape}")
+    # ---------------------------------------------------- ONNX già pronto
+    else:
+        onnx_path_final = input_path
+        if onnx_path and onnx_path != input_path:
+            # Copia o rinomina se serve
+            import shutil
+
+            shutil.copy2(input_path, onnx_path)
+            print(f"[INFO] Copied ONNX to {onnx_path}")
+
+    # ---------------------------------------------------- Verifica / dummy
+    if onnx_path_final and validate:
+        print("[INFO] Verifica ONNX...")
+        onnx.checker.check_model(onnx_path_final)
+        print("✅ ONNX OK")
+
+    if onnx_path_final and onnx_path and run_dummy:
+        print("[INFO] Dummy inference...")
+        sess = ort.InferenceSession(onnx_path_final, providers=["CPUExecutionProvider"])
+        dummy = np.zeros((1, *input_shape), dtype=np.float32)
+        out = sess.run(None, {input_name: dummy})
+        print(f"✅ Shape output: {out[0].shape}")
+
+    # ---------------------------------------------------- ONNX → PyTorch
+    if save_pytorch:
+        onnx_src = onnx_path_final
+        if not onnx_src:  # non dovrebbe mai succedere
+            raise RuntimeError("Non hai un file ONNX da cui convertire in PyTorch")
+
+        print(f"[INFO] Converting ONNX → PyTorch ({torch_path})")
+        torch_model = ConvertModel(onnx.load(onnx_src)).eval()
+        torch.save(torch_model, torch_path)
+        print(f"✅ Salvato PyTorch a {torch_path}")
+
+        # se onnx temporaneo, rimuovi
+        if onnx_path is None and is_keras:
+            os.remove(onnx_src)
