@@ -131,7 +131,7 @@ def convert_model(
 
         # TorchScript
         if save_ts:
-            example = torch.randn((1,) + input_shape)
+            example = torch.randn(1, *input_shape)
             scripted = torch.jit.trace(torch_model, example, strict=False)
             scripted.save(torch_path)
             print(f"✅ TorchScript salvato in {torch_path}")
